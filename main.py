@@ -10,19 +10,18 @@ import google.generativeai as genai
 def extract_book_info(text: str, model) -> str:
     print("LLMでMarkdown抽出：")
     prompt = f"""
-以下の読書チャットログから、1冊分の書籍情報をMarkdown形式で抽出してください。
+以下のチャットログには、参加者が読んでいる本のタイトル、著者、感想などが含まれています。このログから、各書籍ごとに以下の形式で情報をまとめてください：
 
 ---
-{text}
----
+📚 書籍タイトル：（書名を抽出）
+🖋 著者：（わかれば著者名、なければ「不明」）
+💬 感想：（内容や気づき・学びなど、投稿から読み取れる範囲で要約）
 
-出力形式：
----
-📚 書籍タイトル：（必ず1冊）
-🖋 著者：（不明な場合は「不明」）
-💬 感想：（2行以内、なければ「記載なし」）
----
-    """.strip()
+--- の区切りで複数冊まとめてください。
+
+【チャットログ】
+{text.strip()}
+""".strip()
 
     try:
         response = model.generate_content(prompt)
@@ -49,40 +48,24 @@ async def run_bot(token, channel_id, model, messages_file: Path):
             return
 
         with messages_file.open("r", encoding="utf-8") as f:
-            lines = [line.strip() for line in f if line.strip()]
+            text = f.read()
 
-        if not lines:
+        if not text.strip():
             print("⚠️ 有効な投稿がありません")
             await bot.close()
             return
 
-        # ブロックに分割
-        blocks = []
-        current = []
-        for line in lines:
-            if any(keyword in line.lower() for keyword in ["読む", "読んだ", "読み", "読みます", "本"]):
-                if current:
-                    blocks.append("\n".join(current))
-                    current = []
-            current.append(line)
-        if current:
-            blocks.append("\n".join(current))
+        print("📦 全文から抽出を実行")
+        markdown = extract_book_info(text, model)
+        print("📤 投稿内容:\n", markdown)
 
-        print(f"📦 抽出対象ブロック数: {len(blocks)}")
+        if len(markdown) < 2000:
+            await channel.send(markdown)
+            print("✅ 投稿成功")
+        else:
+            print("⚠️ 投稿内容が長すぎてスキップされました")
 
-        for i, block in enumerate(blocks):
-            print(f"\n🧠 処理中 Block {i+1}")
-            markdown = extract_book_info(block, model)
-            print("📤 投稿内容:\n", markdown)
-
-            if len(markdown) < 2000:
-                await channel.send(markdown)
-                print("✅ 投稿成功")
-            else:
-                print("⚠️ 投稿内容が長すぎてスキップされました")
-
-            await asyncio.sleep(1)
-
+        await asyncio.sleep(1)
         await bot.close()
 
     await bot.start(token)
@@ -91,14 +74,12 @@ async def run_bot(token, channel_id, model, messages_file: Path):
 def main():
     print("📂 main.py を実行しています")
 
-    # 環境読み込み
     load_dotenv()
     GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
     DISCORD_BOT_TOKEN = os.getenv("DISCORD_BOT_TOKEN")
     DISCORD_CHANNEL_ID = os.getenv("DISCORD_CHANNEL_ID_TEST")
     MESSAGES_FILE = Path("messages.txt")
 
-    # 環境変数チェック
     print("環境変数確認：")
     print("GEMINI_API_KEY:", "OK" if GEMINI_API_KEY else "❌ 未設定")
     print("DISCORD_BOT_TOKEN:", "OK" if DISCORD_BOT_TOKEN else "❌ 未設定")
@@ -108,7 +89,6 @@ def main():
         print("❌ .env の環境変数が不足しています")
         return
 
-    # Geminiクライアント初期化
     genai.configure(api_key=GEMINI_API_KEY)
     model = genai.GenerativeModel(model_name="models/gemini-1.5-flash")
 
