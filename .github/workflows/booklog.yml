@@ -1,28 +1,36 @@
-name: Weekly Booklog
+````yaml
+name: Weekly Discord Summary
 
 on:
   schedule:
-    - cron: '0 1 * * 1'  # 毎週月曜10:00(JST)に実行
-  workflow_dispatch:
+    - cron: '0 0 * * 0'  # 毎週日曜 0:00 UTC（日本時間で9:00）
+  workflow_dispatch:  # 手動実行も可能
 
 jobs:
-  run-booklog:
+  build:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v3
+      - name: 📦 リポジトリをチェックアウト
+        uses: actions/checkout@v3
 
-      - name: Set up Python
+      - name: 🐍 Python セットアップ
         uses: actions/setup-python@v4
         with:
           python-version: '3.10'
 
-      - name: Install dependencies
-        run: |
-          pip install -r requirements.txt
+      - name: 📚 依存パッケージのインストール
+        run: pip install -r requirements.txt
 
-      - name: Run script
-        run: python main.py
+      - name: 📤 fetch_messages.py 実行
         env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
+          DISCORD_CHANNEL_ID: ${{ secrets.DISCORD_CHANNEL_ID }}
+        run: python fetch_messages.py
+
+      - name: 🧠 main.py 実行
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
+          DISCORD_CHANNEL_ID_TEST: ${{ secrets.DISCORD_CHANNEL_ID_TEST }}  # 本番も同一なら同じ値
+        run: python main.py
