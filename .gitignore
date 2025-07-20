@@ -1,3 +1,5 @@
 .venv
 .env
 messages.txt
+lambda_package
+lambda.zip
