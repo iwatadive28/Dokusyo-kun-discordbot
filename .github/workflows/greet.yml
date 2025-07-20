@@ -5,6 +5,9 @@ on:
     - cron: '0 12 * * 5'    # 金曜21:00 JST → day_before
     - cron: '0 22 * * 5'    # 土曜07:00 JST → start_notice
     - cron: '55 22 * * 5'   # 土曜07:55 JST → end_notice
+    - cron: '30 7 * * 0'    # 日曜16:30 JST
+    - cron: '31 7 * * 0'    # 日曜16:31 JST
+    - cron: '32 7 * * 0'    # 日曜16:32 JST
   workflow_dispatch:
     inputs:
       mode:
@@ -35,18 +38,31 @@ jobs:
             # スケジュール実行時の判定（UTCベース）
             HOUR=$(date -u +"%H")
             MIN=$(date -u +"%M")
-            DOW=$(date -u +"%u")  # 1=Mon, 5=Fri
-
-            if [ "$DOW" = "5" ] && [ "$HOUR" = "12" ]; then
+            DOW=$(date -u +"%u")  # 0=Sun, 1=Mon, ..., 6=Sat
+             
+            # テスト用: 日曜 JST 16:30〜16:32 → UTC 7:30〜7:32
+            if [ "$DOW" = "0" ] && [ "$HOUR" = "7" ] && [ "$MIN" = "30" ]; then
               MODE="day_before"
-            elif [ "$DOW" = "5" ] && [ "$HOUR" = "22" ] && [ "$MIN" = "00" ]; then
+            elif [ "$DOW" = "0" ] && [ "$HOUR" = "7" ] && [ "$MIN" = "31" ]; then
               MODE="start_notice"
-            elif [ "$DOW" = "5" ] && [ "$HOUR" = "22" ] && [ "$MIN" = "55" ]; then
+            elif [ "$DOW" = "0" ] && [ "$HOUR" = "7" ] && [ "$MIN" = "32" ]; then
               MODE="end_notice"
             else
               echo "❌ 実行時刻に対応するモードが見つかりません"
               exit 1
             fi
+ 
+            # 本番用条件（コメントアウト）
+            # if [ "$DOW" = "5" ] && [ "$HOUR" = "12" ]; then
+            #   MODE="day_before"
+            # elif [ "$DOW" = "5" ] && [ "$HOUR" = "22" ] && [ "$MIN" = "00" ]; then
+            #  MODE="start_notice"
+            # elif [ "$DOW" = "5" ] && [ "$HOUR" = "22" ] && [ "$MIN" = "55" ]; then
+            #   MODE="end_notice"
+            # else
+            #  echo "❌ 実行時刻に対応するモードが見つかりません"
+            #   exit 1
+            # fi            
           fi
 
           echo "🟢 実行モード: $MODE"
