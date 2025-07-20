@@ -2,13 +2,15 @@ name: Weekly Reading Group Greetings
 
 on:
   schedule:
-    # 金曜21:00（JST）→ 金曜12:00（UTC）
-    - cron: '0 12 * * 5'
-    # 土曜7:00（JST）→ 金曜22:00（UTC）
-    - cron: '0 22 * * 5'
-    # 土曜7:55（JST）→ 金曜22:55（UTC）
-    - cron: '55 22 * * 5'
-  workflow_dispatch:  # 手動実行も可能
+    - cron: '0 12 * * 5'    # 金曜21:00 JST → day_before
+    - cron: '0 22 * * 5'    # 土曜07:00 JST → start_notice
+    - cron: '55 22 * * 5'   # 土曜07:55 JST → end_notice
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: '投稿モード（day_before / start_notice / end_notice）'
+        required: true
+        type: string
 
 jobs:
   greet:
@@ -26,23 +28,29 @@ jobs:
       - name: 📚 依存パッケージのインストール
         run: pip install -r requirements.txt
 
-      - name: 🤖 金曜夜のリマインダー
-        if: github.event.schedule == '0 12 * * 5'
-        run: python greet.py day_before
-        env:
-          DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
-          DISCORD_CHANNEL_ID: ${{ secrets.DISCORD_CHANNEL_ID }}
+      - name: 🤖 あいさつメッセージを投稿
+        run: |
+          MODE="${{ github.event.inputs.mode }}"
+          if [ -z "$MODE" ]; then
+            # スケジュール実行時の判定（UTCベース）
+            HOUR=$(date -u +"%H")
+            MIN=$(date -u +"%M")
+            DOW=$(date -u +"%u")  # 1=Mon, 5=Fri
 
-      - name: 🌞 読書会開始のあいさつ
-        if: github.event.schedule == '0 22 * * 5'
-        run: python greet.py start_notice
-        env:
-          DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
-          DISCORD_CHANNEL_ID: ${{ secrets.DISCORD_CHANNEL_ID }}
+            if [ "$DOW" = "5" ] && [ "$HOUR" = "12" ]; then
+              MODE="day_before"
+            elif [ "$DOW" = "5" ] && [ "$HOUR" = "22" ] && [ "$MIN" = "00" ]; then
+              MODE="start_notice"
+            elif [ "$DOW" = "5" ] && [ "$HOUR" = "22" ] && [ "$MIN" = "55" ]; then
+              MODE="end_notice"
+            else
+              echo "❌ 実行時刻に対応するモードが見つかりません"
+              exit 1
+            fi
+          fi
 
-      - name: ⏰ 読書会終了5分前の通知
-        if: github.event.schedule == '55 22 * * 5'
-        run: python greet.py end_notice
+          echo "🟢 実行モード: $MODE"
+          python greet.py "$MODE"
         env:
           DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
-          DISCORD_CHANNEL_ID: ${{ secrets.DISCORD_CHANNEL_ID }}
+          DISCORD_CHANNEL_ID_TEST: ${{ secrets.DISCORD_CHANNEL_ID_TEST }}
