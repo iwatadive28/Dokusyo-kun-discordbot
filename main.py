@@ -29,6 +29,19 @@ def extract_book_info(text: str, model) -> str:
     except Exception as e:
         return f"❌ 抽出エラー: {e}"
 
+# --- 長文をDiscord投稿制限に合わせて分割 ---
+def split_text_to_chunks(text, max_length=1990):
+    chunks = []
+    current = ""
+    for line in text.splitlines(keepends=True):
+        if len(current) + len(line) > max_length:
+            chunks.append(current)
+            current = ""
+        current += line
+    if current:
+        chunks.append(current)
+    return chunks
+
 # --- Discord投稿処理 ---
 async def run_bot(token, channel_id, model, messages_file: Path):
     intents = discord.Intents.default()
@@ -57,15 +70,15 @@ async def run_bot(token, channel_id, model, messages_file: Path):
 
         print("📦 全文から抽出を実行")
         markdown = extract_book_info(text, model)
-        print("📤 投稿内容:\n", markdown)
+        print("📤 投稿内容（全体）:\n", markdown)
 
-        if len(markdown) < 2000:
-            await channel.send(markdown)
-            print("✅ 投稿成功")
-        else:
-            print("⚠️ 投稿内容が長すぎてスキップされました")
+        # 2000文字制限に合わせて分割投稿
+        chunks = split_text_to_chunks(markdown, max_length=1990)
+        for i, chunk in enumerate(chunks):
+            await channel.send(chunk)
+            print(f"✅ 投稿 {i+1}/{len(chunks)} 成功")
+            await asyncio.sleep(1)
 
-        await asyncio.sleep(1)
         await bot.close()
 
     await bot.start(token)
