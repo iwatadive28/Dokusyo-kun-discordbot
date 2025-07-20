@@ -1,0 +1,48 @@
+name: Weekly Reading Group Greetings
+
+on:
+  schedule:
+    # 金曜21:00（JST）→ 金曜12:00（UTC）
+    - cron: '0 12 * * 5'
+    # 土曜7:00（JST）→ 金曜22:00（UTC）
+    - cron: '0 22 * * 5'
+    # 土曜7:55（JST）→ 金曜22:55（UTC）
+    - cron: '55 22 * * 5'
+  workflow_dispatch:  # 手動実行も可能
+
+jobs:
+  greet:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📦 リポジトリをチェックアウト
+        uses: actions/checkout@v3
+
+      - name: 🐍 Python セットアップ
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: 📚 依存パッケージのインストール
+        run: pip install -r requirements.txt
+
+      - name: 🤖 金曜夜のリマインダー
+        if: github.event.schedule == '0 12 * * 5'
+        run: python greet.py day_before
+        env:
+          DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
+          DISCORD_CHANNEL_ID: ${{ secrets.DISCORD_CHANNEL_ID }}
+
+      - name: 🌞 読書会開始のあいさつ
+        if: github.event.schedule == '0 22 * * 5'
+        run: python greet.py start_notice
+        env:
+          DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
+          DISCORD_CHANNEL_ID: ${{ secrets.DISCORD_CHANNEL_ID }}
+
+      - name: ⏰ 読書会終了5分前の通知
+        if: github.event.schedule == '55 22 * * 5'
+        run: python greet.py end_notice
+        env:
+          DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
+          DISCORD_CHANNEL_ID: ${{ secrets.DISCORD_CHANNEL_ID }}
