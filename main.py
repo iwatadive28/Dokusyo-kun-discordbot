@@ -1,14 +1,13 @@
 import os
-import openai
-from openai import OpenAI
-from dotenv import load_dotenv
-import discord
 import asyncio
+import discord
+from dotenv import load_dotenv
 from pathlib import Path
 import traceback
+import google.generativeai as genai
 
-# --- LLMでMarkdown抽出 ---
-def extract_book_info(text: str, client) -> str:
+# --- GeminiでMarkdown抽出 ---
+def extract_book_info(text: str, model) -> str:
     print("LLMでMarkdown抽出：")
     prompt = f"""
 以下の読書チャットログから、1冊分の書籍情報をMarkdown形式で抽出してください。
@@ -26,16 +25,13 @@ def extract_book_info(text: str, client) -> str:
     """.strip()
 
     try:
-        response = client.chat.completions.create(
-            model="gpt-3.5-turbo",
-            messages=[{"role": "user", "content": prompt}],
-        )
-        return response.choices[0].message.content.strip()
+        response = model.generate_content(prompt)
+        return response.text.strip()
     except Exception as e:
         return f"❌ 抽出エラー: {e}"
 
 # --- Discord投稿処理 ---
-async def run_bot(token, channel_id, client, messages_file: Path):
+async def run_bot(token, channel_id, model, messages_file: Path):
     intents = discord.Intents.default()
     intents.guilds = True
     bot = discord.Client(intents=intents)
@@ -76,7 +72,7 @@ async def run_bot(token, channel_id, client, messages_file: Path):
 
         for i, block in enumerate(blocks):
             print(f"\n🧠 処理中 Block {i+1}")
-            markdown = extract_book_info(block, client)
+            markdown = extract_book_info(block, model)
             print("📤 投稿内容:\n", markdown)
 
             if len(markdown) < 2000:
@@ -97,26 +93,29 @@ def main():
 
     # 環境読み込み
     load_dotenv()
-    OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+    GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
     DISCORD_BOT_TOKEN = os.getenv("DISCORD_BOT_TOKEN")
     DISCORD_CHANNEL_ID = os.getenv("DISCORD_CHANNEL_ID_TEST")
     MESSAGES_FILE = Path("messages.txt")
 
     # 環境変数チェック
     print("環境変数確認：")
-    print("OPENAI_API_KEY:", "OK" if OPENAI_API_KEY else "❌ 未設定")
+    print("GEMINI_API_KEY:", "OK" if GEMINI_API_KEY else "❌ 未設定")
     print("DISCORD_BOT_TOKEN:", "OK" if DISCORD_BOT_TOKEN else "❌ 未設定")
     print("DISCORD_CHANNEL_ID:", DISCORD_CHANNEL_ID if DISCORD_CHANNEL_ID else "❌ 未設定")
 
-    if not OPENAI_API_KEY or not DISCORD_BOT_TOKEN or not DISCORD_CHANNEL_ID:
+    if not GEMINI_API_KEY or not DISCORD_BOT_TOKEN or not DISCORD_CHANNEL_ID:
         print("❌ .env の環境変数が不足しています")
         return
 
+    # Geminiクライアント初期化
+    genai.configure(api_key=GEMINI_API_KEY)
+    model = genai.GenerativeModel(model_name="models/gemini-1.5-flash")
+
     DISCORD_CHANNEL_ID = int(DISCORD_CHANNEL_ID)
-    client = OpenAI(api_key=OPENAI_API_KEY)
 
     try:
-        asyncio.run(run_bot(DISCORD_BOT_TOKEN, DISCORD_CHANNEL_ID, client, MESSAGES_FILE))
+        asyncio.run(run_bot(DISCORD_BOT_TOKEN, DISCORD_CHANNEL_ID, model, MESSAGES_FILE))
     except Exception as e:
         print("❌ 実行中に例外が発生しました")
         traceback.print_exc()

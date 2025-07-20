@@ -1,4 +1,5 @@
 openai
 requests
 python-dotenv
-discord.py 
+discord.py
+google-generativeai
