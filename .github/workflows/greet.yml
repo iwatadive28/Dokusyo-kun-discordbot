@@ -5,9 +5,9 @@ on:
     # - cron: '0 12 * * 5'    # 金曜21:00 JST → day_before
     # - cron: '0 22 * * 5'    # 土曜07:00 JST → start_notice
     # - cron: '55 22 * * 5'   # 土曜07:55 JST → end_notice
-    - cron: '30 7 * * 0'    # 日曜16:35 JST
-    - cron: '31 7 * * 0'    # 日曜16:36 JST
-    - cron: '32 7 * * 0'    # 日曜16:37 JST
+    - cron: '35 7 * * 0'    # 日曜16:35 JST
+    - cron: '36 7 * * 0'    # 日曜16:36 JST
+    - cron: '37 7 * * 0'    # 日曜16:37 JST
   workflow_dispatch:
     inputs:
       mode:
