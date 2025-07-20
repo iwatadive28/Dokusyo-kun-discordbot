@@ -2,12 +2,14 @@ import os
 import asyncio
 import discord
 from dotenv import load_dotenv
+from datetime import datetime, timedelta
 
+# .env からトークンとチャンネルIDを読み込み
 load_dotenv()
 
 TOKEN = os.getenv("DISCORD_BOT_TOKEN")
 CHANNEL_ID = int(os.getenv("DISCORD_CHANNEL_ID"))
-DAYS_BACK = 7  # 直近何日分を取得するか
+DAYS_BACK = 7  # 過去〇日分
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -24,19 +26,23 @@ async def on_ready():
         await client.close()
         return
 
-    # メッセージ取得（最新500件 or 日数ベース）
+    # 日付フィルター：過去7日間の投稿のみ
+    since = datetime.utcnow() - timedelta(days=DAYS_BACK)
+    print(f"📅 {DAYS_BACK}日前以降のメッセージを取得中...")
+
     messages = []
-    async for msg in channel.history(limit=500):
+    async for msg in channel.history(after=since, limit=None, oldest_first=True):
         if msg.author.bot:
             continue
-        messages.append(msg.content.strip())
+        content = msg.content.strip()
+        if content:
+            messages.append(content)
 
-    # ファイルに保存（またはこのままLLMに渡す）
     with open("messages.txt", "w", encoding="utf-8") as f:
         for m in messages:
             f.write(m + "\n")
 
-    print(f"✅ メッセージ {len(messages)} 件を保存しました")
+    print(f"✅ {len(messages)} 件のメッセージを messages.txt に保存しました")
     await client.close()
 
 # 実行
